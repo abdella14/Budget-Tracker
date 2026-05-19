@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Catatan Bulanan</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#0a0a0f;color:#e2e0db;font-family:'DM Sans',system-ui,sans-serif;max-width:440px;margin:0 auto;min-height:100vh;padding-bottom:40px}
+
+/* Header */
+.header{padding:28px 20px 0}
+.header-sub{font-size:10px;letter-spacing:3px;color:#444;text-transform:uppercase;margin-bottom:4px}
+.header-title{font-size:24px;font-weight:800;color:#f0ede8;letter-spacing:-0.5px}
+
+/* Month Nav */
+.month-nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0}
+.month-label{font-size:15px;font-weight:700;color:#f0ede8}
+.nav-btns{display:flex;gap:6px}
+.nav-btn{background:#16161e;border:1px solid #222;color:#888;border-radius:8px;width:32px;height:32px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.nav-btn:hover{background:#222;color:#fff}
+
+/* Summary Card */
+.summary-card{margin:14px 16px 0;background:#16161e;border-radius:14px;padding:14px 16px;border:1px solid #1e1e28}
+.summary-row{display:flex;justify-content:space-between;align-items:center}
+.summary-left .label{font-size:10px;color:#444;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
+.summary-left .amount{font-size:22px;font-weight:800;color:#f97316}
+.summary-left .amount.empty{color:#333;font-size:14px;font-weight:400}
+.btn-detail{background:#0a0a0f;border:1px solid #222;color:#666;border-radius:8px;padding:7px 13px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-detail.active{background:#f97316;border-color:#f97316;color:#fff}
+
+/* Category breakdown */
+.cat-breakdown{margin:0 16px;background:#16161e;border-radius:0 0 14px 14px;padding:14px 16px;display:none;border:1px solid #1e1e28;border-top:none}
+.cat-breakdown.show{display:block}
+.cat-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+.cat-row:last-child{margin-bottom:0}
+.cat-info{display:flex;align-items:center;gap:8px}
+.cat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.cat-name{font-size:12px;color:#bbb}
+.cat-amount{font-size:12px;font-weight:700}
+.cat-bar-wrap{margin-top:10px;padding-top:10px;border-top:1px solid #1e1e28}
+.cat-empty{font-size:12px;color:#333}
+
+/* Calendar */
+.cal-wrap{padding:16px 16px 0}
+.day-headers{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px}
+.day-header{text-align:center;font-size:9px;color:#444;letter-spacing:1px;text-transform:uppercase;padding:4px 0;font-weight:600}
+.day-header.weekend{color:#f97316;opacity:.5}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.day-cell{aspect-ratio:1;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:#16161e;border:1.5px solid transparent;position:relative;transition:all .12s}
+.day-cell.empty{background:transparent;cursor:default;pointer-events:none}
+.day-cell.today{border-color:#f97316}
+.day-cell.today .day-num{color:#f97316;font-weight:800}
+.day-cell.has-data .day-dot{display:block}
+.day-cell.selected{background:#f97316;border-color:#f97316}
+.day-cell.selected .day-num{color:#fff}
+.day-cell.future{opacity:.35}
+.day-cell:not(.empty):not(.future):hover{background:#1e1e28;border-color:#333}
+.day-num{font-size:13px;font-weight:500;color:#ccc;line-height:1}
+.day-dot{display:none;width:4px;height:4px;border-radius:50%;background:#f97316;margin-top:3px}
+.day-cell.selected .day-dot{background:#fff}
+.day-cell.weekend-day .day-num{color:#f97316;opacity:.7}
+.day-total-mini{font-size:8px;color:#888;margin-top:2px;font-weight:500}
+.day-cell.selected .day-total-mini{color:#fff;opacity:.8}
+
+/* Day Panel */
+.day-panel{margin:14px 16px 0;background:#16161e;border-radius:14px;padding:16px;border:1px solid #1e1e28}
+.day-panel-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.day-panel-title{font-size:15px;font-weight:700}
+.day-panel-total{font-size:13px;color:#f97316;font-weight:600}
+.btn-add{background:#f97316;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer}
+.entries-list{display:flex;flex-direction:column;gap:7px}
+.entry-item{background:#0f0f13;border-radius:9px;padding:10px 13px;display:flex;align-items:center;justify-content:space-between;border-left:2.5px solid #333}
+.entry-kat{font-size:12px;color:#ccc}
+.entry-ket{font-size:10px;color:#555;margin-top:1px}
+.entry-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.entry-amt{font-size:13px;font-weight:700}
+.btn-del{background:none;border:none;color:#333;font-size:17px;cursor:pointer;padding:0;line-height:1}
+.day-empty{text-align:center;padding:24px 0;color:#333;font-size:12px;line-height:2}
+
+/* Form */
+.form-wrap{margin-top:12px;background:#0f0f13;border-radius:10px;padding:14px;border:1px solid #1e1e28;display:none}
+.form-wrap.show{display:block}
+.form-label{font-size:10px;color:#444;letter-spacing:1px;margin-bottom:6px}
+.kat-grid{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
+.kat-btn{padding:5px 10px;border-radius:14px;border:1.5px solid #222;background:transparent;color:#555;font-size:11px;cursor:pointer;transition:all .12s}
+.kat-btn.sel{font-weight:600}
+.form-input{width:100%;background:#0a0a0f;border:1px solid #222;border-radius:7px;padding:9px 11px;color:#e2e0db;font-size:12px;outline:none;margin-bottom:9px;font-family:inherit}
+.form-input.num{font-size:14px;font-weight:700}
+.form-input::placeholder{color:#333}
+.form-row{display:flex;gap:7px}
+.btn-cancel{flex:1;padding:9px;border-radius:7px;border:1px solid #222;background:transparent;color:#666;font-size:12px;cursor:pointer}
+.btn-save{flex:2;padding:9px;border-radius:7px;border:none;background:#333;color:#555;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s}
+.btn-save.ready{background:#f97316;color:#fff}
+
+/* Budget bar */
+.budget-row{margin:14px 16px 0;background:#16161e;border-radius:12px;padding:13px 15px;border:1px solid #1e1e28}
+.budget-top{display:flex;justify-content:space-between;margin-bottom:8px}
+.budget-label{font-size:10px;color:#444;letter-spacing:1px;text-transform:uppercase}
+.budget-val{font-size:11px;color:#888}
+.bar-bg{background:#0a0a0f;border-radius:99px;height:5px;overflow:hidden}
+.bar-fill{height:100%;border-radius:99px;background:#f97316;transition:width .4s ease;max-width:100%}
+.bar-fill.warn{background:#ef4444}
+
+/* Month stats */
+.stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:12px 16px 0}
+.stat-card{background:#16161e;border-radius:10px;padding:11px 12px;border:1px solid #1e1e28;text-align:center}
+.stat-val{font-size:15px;font-weight:800;color:#f0ede8;margin-bottom:2px}
+.stat-lbl{font-size:9px;color:#444;letter-spacing:.5px;text-transform:uppercase}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#222;border-radius:99px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-sub">Pengeluaran</div>
+  <div class="header-title">Budget Bulanan</div>
+</div>
+
+<div class="month-nav">
+  <div class="month-label" id="monthLabel"></div>
+  <div class="nav-btns">
+    <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
+    <button class="nav-btn" onclick="changeMonth(1)">›</button>
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="summary-card">
+  <div class="summary-row">
+    <div class="summary-left">
+      <div class="label">Total Bulan Ini</div>
+      <div class="amount empty" id="monthTotal">Belum ada catatan</div>
+    </div>
+    <button class="btn-detail" id="btnDetail" onclick="toggleDetail()">Rincian</button>
+  </div>
+</div>
+<div class="cat-breakdown" id="catBreakdown"></div>
+
+<!-- Stats -->
+<div class="stats-row" id="statsRow">
+  <div class="stat-card"><div class="stat-val" id="statHari">0</div><div class="stat-lbl">Hari Tercatat</div></div>
+  <div class="stat-card"><div class="stat-val" id="statRataRata">—</div><div class="stat-lbl">Rata/Hari</div></div>
+  <div class="stat-card"><div class="stat-val" id="statTermahal">—</div><div class="stat-lbl">Hari Terboros</div></div>
+</div>
+
+<!-- Budget bar -->
+<div class="budget-row">
+  <div class="budget-top">
+    <span class="budget-label">Budget Harian (target)</span>
+    <span class="budget-val" id="budgetVal">Rp 22.000/hari</span>
+  </div>
+  <div class="bar-bg"><div class="bar-fill" id="budgetBar" style="width:0%"></div></div>
+</div>
+
+<!-- Calendar -->
+<div class="cal-wrap">
+  <div class="day-headers">
+    <div class="day-header">Sen</div>
+    <div class="day-header">Sel</div>
+    <div class="day-header">Rab</div>
+    <div class="day-header">Kam</div>
+    <div class="day-header">Jum</div>
+    <div class="day-header weekend">Sab</div>
+    <div class="day-header weekend">Min</div>
+  </div>
+  <div class="cal-grid" id="calGrid"></div>
+</div>
+
+<!-- Day Panel -->
+<div class="day-panel" id="dayPanel" style="display:none">
+  <div class="day-panel-header">
+    <div>
+      <div class="day-panel-title" id="dayPanelTitle"></div>
+      <div class="day-panel-total" id="dayPanelTotal"></div>
+    </div>
+    <button class="btn-add" onclick="toggleForm()">+ Tambah</button>
+  </div>
+
+  <div class="form-wrap" id="formWrap">
+    <div class="form-label">KATEGORI</div>
+    <div class="kat-grid" id="katGrid"></div>
+    <div class="form-label">KETERANGAN (opsional)</div>
+    <input class="form-input" id="inpKet" type="text" placeholder="warteg, gorengan, dll...">
+    <div class="form-label">JUMLAH (Rp)</div>
+    <input class="form-input num" id="inpJumlah" type="number" placeholder="15000" oninput="checkSave()">
+    <div class="form-row">
+      <button class="btn-cancel" onclick="toggleForm()">Batal</button>
+      <button class="btn-save" id="btnSave" onclick="saveEntry()">Simpan</button>
+    </div>
+  </div>
+
+  <div id="entriesList"></div>
+</div>
+
+<script>
+// ── Constants ──────────────────────────────────────────
+const KATEGORI = [
+  {label:"🍜 Makan",    color:"#f97316"},
+  {label:"🚌 Transport",color:"#3b82f6"},
+  {label:"📱 Kuota",    color:"#8b5cf6"},
+  {label:"🛒 Belanja",  color:"#10b981"},
+  {label:"🎮 Hiburan",  color:"#ec4899"},
+  {label:"💊 Kesehatan",color:"#06b6d4"},
+  {label:"📦 Lainnya",  color:"#6b7280"},
+];
+const MONTHS_ID = ["Januari","Februari","Maret","April","Mei","Juni",
+                   "Juli","Agustus","September","Oktober","November","Desember"];
+const DAYS_ID   = ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu","Minggu"];
+const DAILY_TARGET = 22000;
+
+// ── State ──────────────────────────────────────────────
+const TODAY = new Date(2026, 4, 18); // 18 Mei 2026 — hardcoded fallback, tapi pakai date real
+const REAL_TODAY = new Date();
+const USE_TODAY = (REAL_TODAY.getFullYear() >= 2026) ? REAL_TODAY : TODAY;
+
+let curYear  = USE_TODAY.getFullYear();
+let curMonth = USE_TODAY.getMonth();
+let selDay   = USE_TODAY.getDate();
+let selKat   = KATEGORI[0].label;
+let showForm = false;
+let showDetail = false;
+
+// ── Storage ─────────────────────────────────────────────
+function storKey(y,m,d){ return `exp_${y}_${m+1}_${d}`; }
+function loadDay(y,m,d){
+  try{ return JSON.parse(localStorage.getItem(storKey(y,m,d)))||[]; }catch{return[];}
+}
+function saveDay(y,m,d,arr){ localStorage.setItem(storKey(y,m,d),JSON.stringify(arr)); }
+
+function loadMonth(y,m){
+  const days = new Date(y,m+1,0).getDate();
+  let all=[];
+  for(let d=1;d<=days;d++) all.push({d,entries:loadDay(y,m,d)});
+  return all;
+}
+
+// ── Format ──────────────────────────────────────────────
+function fmt(n){ return Number(n).toLocaleString("id-ID"); }
+function fmtShort(n){
+  if(n>=1000000) return (n/1000000).toFixed(1).replace(".0","")+"jt";
+  if(n>=1000)    return Math.round(n/1000)+"rb";
+  return String(n);
+}
+function dayTotal(entries){ return entries.reduce((s,e)=>s+Number(e.jumlah),0); }
+
+// ── Render All ──────────────────────────────────────────
+function renderAll(){
+  renderMonthLabel();
+  renderCalendar();
+  renderSummary();
+  renderDayPanel();
+  renderBudgetBar();
+  renderKatGrid();
+}
+
+function renderMonthLabel(){
+  document.getElementById("monthLabel").textContent =
+    `${MONTHS_ID[curMonth]} ${curYear}`;
+}
+
+function renderCalendar(){
+  const grid = document.getElementById("calGrid");
+  grid.innerHTML = "";
+  const daysInMonth = new Date(curYear, curMonth+1, 0).getDate();
+  const firstDow = new Date(curYear, curMonth, 1).getDay(); // 0=Sun
+  // Convert to Mon-based: Mon=0..Sun=6
+  const firstOffset = (firstDow === 0) ? 6 : firstDow - 1;
+  const monthData = loadMonth(curYear, curMonth);
+  const isCurrentMonth = (curYear===USE_TODAY.getFullYear() && curMonth===USE_TODAY.getMonth());
+
+  // Empty cells
+  for(let i=0;i<firstOffset;i++){
+    const el=document.createElement("div");
+    el.className="day-cell empty";
+    grid.appendChild(el);
+  }
+
+  for(let d=1;d<=daysInMonth;d++){
+    const entries = loadDay(curYear,curMonth,d);
+    const total   = dayTotal(entries);
+    const dow     = new Date(curYear,curMonth,d).getDay(); // 0=Sun,6=Sat
+    const isWeekend = dow===0||dow===6;
+    const isToday   = isCurrentMonth && d===USE_TODAY.getDate();
+    const isSel     = d===selDay;
+
+    const el=document.createElement("div");
+    let cls="day-cell";
+    if(isToday)  cls+=" today";
+    if(isSel)    cls+=" selected";
+    if(entries.length>0) cls+=" has-data";
+    if(isWeekend) cls+=" weekend-day";
+    el.className=cls;
+    el.onclick=()=>{selectDay(d);};
+
+    el.innerHTML=`<span class="day-num">${d}</span>
+      <span class="day-dot"></span>
+      ${total>0?`<span class="day-total-mini">${fmtShort(total)}</span>`:""}`;
+    grid.appendChild(el);
+  }
+}
+
+function renderSummary(){
+  const monthData = loadMonth(curYear, curMonth);
+  const total = monthData.reduce((s,{entries})=>s+dayTotal(entries),0);
+  const el = document.getElementById("monthTotal");
+  if(total>0){
+    el.textContent="Rp "+fmt(total);
+    el.classList.remove("empty");
+  } else {
+    el.textContent="Belum ada catatan";
+    el.classList.add("empty");
+  }
+
+  // Stats
+  const filledDays = monthData.filter(({entries})=>entries.length>0);
+  const dayTotals  = filledDays.map(({d,entries})=>({d,t:dayTotal(entries)}));
+  document.getElementById("statHari").textContent = filledDays.length;
+  document.getElementById("statRataRata").textContent = filledDays.length
+    ? fmtShort(Math.round(total/filledDays.length)) : "—";
+  if(dayTotals.length){
+    const max = dayTotals.reduce((a,b)=>b.t>a.t?b:a);
+    document.getElementById("statTermahal").textContent = max.d;
+  } else {
+    document.getElementById("statTermahal").textContent = "—";
+  }
+
+  // Category breakdown
+  if(showDetail) renderCatBreakdown();
+}
+
+function renderCatBreakdown(){
+  const monthData = loadMonth(curYear, curMonth);
+  const totals = {};
+  let grand = 0;
+  monthData.forEach(({entries})=>{
+    entries.forEach(e=>{
+      totals[e.kategori]=(totals[e.kategori]||0)+Number(e.jumlah);
+      grand+=Number(e.jumlah);
+    });
+  });
+  const bd = document.getElementById("catBreakdown");
+  if(!grand){ bd.innerHTML=`<div class="cat-empty">Belum ada data bulan ini.</div>`; return; }
+  const rows = KATEGORI.map(k=>({...k,total:totals[k.label]||0}))
+    .filter(k=>k.total>0).sort((a,b)=>b.total-a.total);
+  bd.innerHTML = rows.map(k=>{
+    const pct = Math.round(k.total/grand*100);
+    return `<div class="cat-row">
+      <div class="cat-info">
+        <span class="cat-dot" style="background:${k.color}"></span>
+        <span class="cat-name">${k.label}</span>
+      </div>
+      <span class="cat-amount" style="color:${k.color}">Rp ${fmt(k.total)} <span style="color:#444;font-weight:400;font-size:10px">${pct}%</span></span>
+    </div>`;
+  }).join("")+`<div class="cat-bar-wrap" style="display:flex;gap:2px;height:6px;border-radius:99px;overflow:hidden">
+    ${rows.map(k=>`<div style="width:${Math.round(k.total/grand*100)}%;background:${k.color};height:100%"></div>`).join("")}
+  </div>`;
+}
+
+function renderBudgetBar(){
+  const isCurrentMonth = (curYear===USE_TODAY.getFullYear() && curMonth===USE_TODAY.getMonth());
+  if(!isCurrentMonth){ document.getElementById("budgetBar").style.width="0%"; return; }
+  const passedDays = USE_TODAY.getDate();
+  const monthData  = loadMonth(curYear,curMonth);
+  const total = monthData.reduce((s,{entries})=>s+dayTotal(entries),0);
+  const budget = DAILY_TARGET * passedDays;
+  const pct = Math.min(Math.round(total/budget*100),100);
+  const bar = document.getElementById("budgetBar");
+  bar.style.width = pct+"%";
+  bar.className = "bar-fill"+(pct>=90?" warn":"");
+  document.getElementById("budgetVal").textContent =
+    `Rp ${fmt(total)} / Rp ${fmt(budget)} (${pct}%)`;
+}
+
+function renderDayPanel(){
+  const panel = document.getElementById("dayPanel");
+  if(!selDay){ panel.style.display="none"; return; }
+  panel.style.display="block";
+
+  const entries = loadDay(curYear,curMonth,selDay);
+  const total   = dayTotal(entries);
+  const date    = new Date(curYear,curMonth,selDay);
+  const dow     = date.getDay();
+  const dowName = DAYS_ID[dow===0?6:dow-1];
+
+  document.getElementById("dayPanelTitle").textContent =
+    `${dowName}, ${selDay} ${MONTHS_ID[curMonth]}`;
+  const totalEl = document.getElementById("dayPanelTotal");
+  totalEl.textContent = total>0 ? "Rp "+fmt(total) : "";
+
+  const list = document.getElementById("entriesList");
+  if(!entries.length){
+    list.innerHTML=`<div class="day-empty">Belum ada catatan.<br>Tap "+ Tambah" untuk mulai.</div>`;
+    return;
+  }
+  list.innerHTML="";
+  const wrap = document.createElement("div");
+  wrap.className="entries-list";
+  entries.forEach(e=>{
+    const kat = KATEGORI.find(k=>k.label===e.kategori)||KATEGORI[6];
+    const el = document.createElement("div");
+    el.className="entry-item";
+    el.style.borderLeftColor=kat.color;
+    el.innerHTML=`<div>
+      <div class="entry-kat">${e.kategori}</div>
+      ${e.keterangan?`<div class="entry-ket">${e.keterangan}</div>`:""}
+    </div>
+    <div class="entry-right">
+      <span class="entry-amt" style="color:${kat.color}">Rp ${fmt(e.jumlah)}</span>
+      <button class="btn-del" onclick="delEntry('${e.id}')">×</button>
+    </div>`;
+    wrap.appendChild(el);
+  });
+  list.appendChild(wrap);
+}
+
+function renderKatGrid(){
+  const grid = document.getElementById("katGrid");
+  grid.innerHTML="";
+  KATEGORI.forEach(k=>{
+    const btn = document.createElement("button");
+    btn.className="kat-btn"+(selKat===k.label?" sel":"");
+    btn.textContent=k.label;
+    if(selKat===k.label){
+      btn.style.borderColor=k.color;
+      btn.style.background=k.color+"22";
+      btn.style.color=k.color;
+    }
+    btn.onclick=()=>{selKat=k.label;renderKatGrid();};
+    grid.appendChild(btn);
+  });
+}
+
+// ── Actions ─────────────────────────────────────────────
+function changeMonth(dir){
+  curMonth+=dir;
+  if(curMonth>11){curMonth=0;curYear++;}
+  if(curMonth<0) {curMonth=11;curYear--;}
+  selDay=null;
+  showForm=false;
+  document.getElementById("formWrap").classList.remove("show");
+  renderAll();
+}
+
+function selectDay(d){
+  selDay=d;
+  showForm=false;
+  document.getElementById("formWrap").classList.remove("show");
+  renderAll();
+  setTimeout(()=>document.getElementById("dayPanel").scrollIntoView({behavior:"smooth",block:"nearest"}),80);
+}
+
+function toggleForm(){
+  showForm=!showForm;
+  const fw=document.getElementById("formWrap");
+  fw.classList.toggle("show",showForm);
+  if(showForm){
+    document.getElementById("inpKet").value="";
+    document.getElementById("inpJumlah").value="";
+    checkSave();
+  }
+}
+
+function checkSave(){
+  const v=document.getElementById("inpJumlah").value;
+  document.getElementById("btnSave").className="btn-save"+(v&&!isNaN(Number(v))?" ready":"");
+}
+
+function saveEntry(){
+  const jumlah=document.getElementById("inpJumlah").value;
+  if(!jumlah||isNaN(Number(jumlah))) return;
+  const ket=document.getElementById("inpKet").value.trim();
+  const entries=loadDay(curYear,curMonth,selDay);
+  entries.push({id:Date.now().toString(),kategori:selKat,keterangan:ket,jumlah:Number(jumlah)});
+  saveDay(curYear,curMonth,selDay,entries);
+  showForm=false;
+  document.getElementById("formWrap").classList.remove("show");
+  renderAll();
+}
+
+function delEntry(id){
+  const entries=loadDay(curYear,curMonth,selDay).filter(e=>e.id!==id);
+  saveDay(curYear,curMonth,selDay,entries);
+  renderAll();
+}
+
+function toggleDetail(){
+  showDetail=!showDetail;
+  const bd=document.getElementById("catBreakdown");
+  bd.classList.toggle("show",showDetail);
+  document.getElementById("btnDetail").classList.toggle("active",showDetail);
+  if(showDetail) renderCatBreakdown();
+}
+
+// ── Init ────────────────────────────────────────────────
+renderAll();
+</script>
+</body>
+</html>
