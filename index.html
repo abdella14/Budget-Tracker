@@ -226,9 +226,11 @@ let isBusy = false;
 
 // ── API ────────────────────────────────────────────────────
 function apiUrl(params){
-  return API + "?" + Object.entries(params)
+  const urlBaru = "https://script.google.com/macros/s/AKfycbxBk1FJRRuVesU0KUG2cxiM3M2JJx61y2mu0yiusHubyLL-v2o-okIcOGa08BjhCJQ/exec";
+  return urlBaru + "?" + Object.entries(params)
     .map(([k,v])=>encodeURIComponent(k)+"="+encodeURIComponent(v)).join("&");
 }
+
 
 async function apiFetch(params){
   const res = await fetch(apiUrl(params));
