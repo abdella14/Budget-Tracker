@@ -557,15 +557,33 @@ function requestPin(cb){
   setTimeout(()=>document.getElementById("pinInput").focus(),100);
 }
 
-function confirmPin(){
+async function confirmPin(){
   const val = document.getElementById("pinInput").value.trim();
   if(!val){ document.getElementById("pinError").textContent="Masukkan PIN dulu."; return; }
-  // Simpan di session, server yang validasi sebenarnya
-  sessionStorage.setItem("pin", val);
-  pinAuthed=true;
-  sessionStorage.setItem("pinAuthed","1");
-  document.getElementById("pinModal").style.display="none";
-  if(pinCallback){ pinCallback(); pinCallback=null; }
+
+  const btn = document.querySelector(".btn-pin");
+  btn.textContent="Memverifikasi...";
+  btn.disabled=true;
+
+  try {
+    const res = await apiFetch({action:"verify", pin:val});
+    if(res.ok){
+      sessionStorage.setItem("pin", val);
+      pinAuthed=true;
+      sessionStorage.setItem("pinAuthed","1");
+      document.getElementById("pinModal").style.display="none";
+      if(pinCallback){ pinCallback(); pinCallback=null; }
+    } else {
+      document.getElementById("pinError").textContent="PIN salah. Coba lagi.";
+      document.getElementById("pinInput").value="";
+      document.getElementById("pinInput").focus();
+    }
+  } catch(e){
+    document.getElementById("pinError").textContent="Gagal terhubung. Cek koneksi.";
+  }
+
+  btn.textContent="Konfirmasi";
+  btn.disabled=false;
 }
 
 function cancelPin(){
