@@ -136,6 +136,16 @@ body{background:#0a0a0f;color:#e2e0db;font-family:'DM Sans',system-ui,sans-serif
 .btn-pin{width:100%;padding:12px;border-radius:10px;border:none;background:#f97316;color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px}
 .btn-pin-cancel{width:100%;padding:10px;border-radius:10px;border:1px solid #222;background:transparent;color:#666;font-size:13px;cursor:pointer}
 
+.sumber-grid{display:flex;gap:6px;margin-bottom:12px}
+.sumber-btn{flex:1;padding:7px 6px;border-radius:10px;border:1.5px solid #222;background:transparent;color:#555;font-size:11px;cursor:pointer;text-align:center;transition:all .12s;font-weight:500}
+.sumber-btn.sel-sendiri{border-color:#10b981;background:#10b98122;color:#10b981;font-weight:700}
+.sumber-btn.sel-titipan{border-color:#3b82f6;background:#3b82f622;color:#3b82f6;font-weight:700}
+.sumber-btn.sel-khusus{border-color:#8b5cf6;background:#8b5cf622;color:#8b5cf6;font-weight:700}
+.sumber-badge{font-size:9px;padding:2px 6px;border-radius:99px;font-weight:600;margin-left:4px;vertical-align:middle}
+.badge-sendiri{background:#10b98122;color:#10b981}
+.badge-titipan{background:#3b82f622;color:#3b82f6}
+.badge-khusus{background:#8b5cf622;color:#8b5cf6}
+
 ::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-thumb{background:#222;border-radius:99px}
 </style>
@@ -221,6 +231,8 @@ body{background:#0a0a0f;color:#e2e0db;font-family:'DM Sans',system-ui,sans-serif
     <div class="kat-grid" id="katGrid"></div>
     <div class="form-label">KETERANGAN (opsional)</div>
     <input class="form-input" id="inpKet" type="text" placeholder="warteg, gorengan, dll...">
+    <div class="form-label">SUMBER</div>
+    <div class="sumber-grid" id="sumberGrid"></div>
     <div class="form-label">JUMLAH (Rp)</div>
     <input class="form-input num" id="inpJumlah" type="number" placeholder="15000" oninput="checkSave()">
     <div class="form-row">
@@ -253,6 +265,7 @@ let curYear  = TODAY.getFullYear();
 let curMonth = TODAY.getMonth();
 let selDay   = TODAY.getDate();
 let selKat   = KATEGORI[0].label;
+let selSumber = 'Sendiri';
 let showForm = false;
 let showDetail = false;
 let cache    = []; // in-memory + localStorage backed
@@ -338,6 +351,7 @@ function renderAll(){
   renderSummary();
   renderDayPanel();
   renderKatGrid();
+  renderSumberGrid();
 }
 
 function renderCalendar(){
@@ -374,9 +388,7 @@ function renderCalendar(){
 
 function renderSummary(){
   const total = sumEntries(cache);
-  const el    = document.getElementById("monthTotal");
-  if(total>0){ el.textContent="Rp "+fmt(total); el.classList.remove("empty"); }
-  else        { el.textContent="Belum ada catatan"; el.classList.add("empty"); }
+  // total display handled below with sumber breakdown
 
   const byDay={};
   cache.forEach(e=>{ const d=Number(e.hari); byDay[d]=(byDay[d]||0)+Number(e.jumlah); });
@@ -389,6 +401,23 @@ function renderSummary(){
   } else {
     document.getElementById("statTerboros").textContent = "—";
   }
+  // Sumber breakdown
+  const totalSendiri = cache.filter(e=>(e.sumber||"Sendiri")==="Sendiri").reduce((s,e)=>s+Number(e.jumlah),0);
+  const totalTitipan = cache.filter(e=>e.sumber==="Titipan").reduce((s,e)=>s+Number(e.jumlah),0);
+  const totalKhusus  = cache.filter(e=>e.sumber==="Budget Khusus").reduce((s,e)=>s+Number(e.jumlah),0);
+  const elAmt = document.getElementById("monthTotal");
+  if(total>0){
+    let sub = "";
+    if(totalSendiri>0) sub+=`<span style="font-size:11px;color:#10b981;display:block;margin-top:2px">Sendiri: Rp ${fmt(totalSendiri)}</span>`;
+    if(totalTitipan>0) sub+=`<span style="font-size:11px;color:#3b82f6;display:block">Titipan: Rp ${fmt(totalTitipan)}</span>`;
+    if(totalKhusus>0)  sub+=`<span style="font-size:11px;color:#8b5cf6;display:block">Budget Khusus: Rp ${fmt(totalKhusus)}</span>`;
+    elAmt.innerHTML=`Rp ${fmt(total)}`+sub;
+    elAmt.classList.remove("empty");
+  } else {
+    elAmt.textContent="Belum ada catatan";
+    elAmt.classList.add("empty");
+  }
+
   if(showDetail) renderCatBreakdown();
 }
 
@@ -440,8 +469,10 @@ function renderDayPanel(){
     el.className="entry-item";
     el.id="entry-"+e.id;
     el.style.borderLeftColor=kat.color;
-    el.innerHTML=`<div>
-      <div class="entry-kat">${e.kategori}</div>
+    const sumber = e.sumber || "Sendiri";
+    const sbadge = sumber==="Titipan" ? "badge-titipan" : sumber==="Budget Khusus" ? "badge-khusus" : "";
+    el.innerHTML=`<div style="flex:1;min-width:0">
+      <div class="entry-kat">${e.kategori}${sbadge?`<span class="sumber-badge ${sbadge}">${sumber}</span>`:""}</div>
       ${e.keterangan?`<div class="entry-ket">${e.keterangan}</div>`:""}
     </div>
     <div class="entry-right">
@@ -451,6 +482,26 @@ function renderDayPanel(){
     wrap.appendChild(el);
   });
   list.appendChild(wrap);
+}
+
+const SUMBER_OPTIONS = [
+  {label:"Sendiri", cls:"sel-sendiri"},
+  {label:"Titipan", cls:"sel-titipan"},
+  {label:"Budget Khusus", cls:"sel-khusus"},
+];
+
+function renderSumberGrid(){
+  const grid=document.getElementById("sumberGrid");
+  if(!grid) return;
+  grid.innerHTML="";
+  SUMBER_OPTIONS.forEach(s=>{
+    const btn=document.createElement("button");
+    const isSel=selSumber===s.label;
+    btn.className="sumber-btn"+(isSel?" "+s.cls:"");
+    btn.textContent=s.label;
+    btn.onclick=()=>{ selSumber=s.label; renderSumberGrid(); };
+    grid.appendChild(btn);
+  });
 }
 
 function renderKatGrid(){
@@ -494,6 +545,8 @@ function openForm(){
   document.getElementById("formWrap").classList.add("show");
   document.getElementById("inpKet").value="";
   document.getElementById("inpJumlah").value="";
+  selSumber="Sendiri";
+  renderSumberGrid();
   checkSave();
 }
 
@@ -517,7 +570,8 @@ async function saveEntry(){
   const entry = {
     id, tanggal:`${selDay}/${curMonth+1}/${curYear}`,
     tahun:curYear, bulan:curMonth+1, hari:selDay,
-    kategori:selKat, keterangan:ket, jumlah:Number(jumlah)
+    kategori:selKat, keterangan:ket, jumlah:Number(jumlah),
+    sumber:selSumber
   };
 
   // 1. Optimistic update — langsung tampil
@@ -529,7 +583,7 @@ async function saveEntry(){
   // 2. Sync ke server di background
   setSyncState("syncing","Menyimpan...");
   try{
-    const res = await apiFetch({...entry, action:"add", pin});
+    const res = await apiFetch({...entry, action:"add", pin, sumber:selSumber});
     if(res.ok){
       setSyncState("ok","Tersimpan ✓");
       // refresh supaya ID dari server konsisten
