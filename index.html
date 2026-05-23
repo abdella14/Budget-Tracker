@@ -25,7 +25,11 @@ body{background:#0a0a0f;color:#e2e0db;font-family:'DM Sans',system-ui,sans-serif
   .stats-row{margin:10px 0 0 0}
   .cal-wrap{padding:14px 0 0 0}
   .day-panel{margin:0;border-radius:14px}
-  .day-panel-placeholder{display:flex;align-items:center;justify-content:center;min-height:300px;background:#16161e;border-radius:14px;border:1px solid #1e1e28;color:#333;font-size:13px;flex-direction:column;gap:8px}
+  .btn-sync-lama{display:block;width:calc(100% - 32px);margin:12px 16px 0;padding:11px;border-radius:10px;border:1px dashed #2a2a38;background:transparent;color:#555;font-size:12px;cursor:pointer;text-align:center;transition:all .15s}
+.btn-sync-lama:hover{border-color:#f97316;color:#f97316}
+.btn-sync-lama.done{border-color:#10b981;color:#10b981;border-style:solid}
+
+.day-panel-placeholder{display:flex;align-items:center;justify-content:center;min-height:300px;background:#16161e;border-radius:14px;border:1px solid #1e1e28;color:#333;font-size:13px;flex-direction:column;gap:8px}
   .day-panel-placeholder .ico{font-size:32px}
 }
 
@@ -205,6 +209,8 @@ body{background:#0a0a0f;color:#e2e0db;font-family:'DM Sans',system-ui,sans-serif
   <div class="stat-card"><div class="stat-val" id="statTerboros">—</div><div class="stat-lbl">Hari Terboros</div></div>
 </div>
 
+<button class="btn-sync-lama" id="btnSyncLama" onclick="syncDataLama()">⟳ Sinkron data lama → isi kolom Sumber kosong sebagai "Sendiri"</button>
+
 <div class="cal-wrap">
   <div class="day-headers">
     <div class="day-header">Sen</div><div class="day-header">Sel</div>
@@ -314,6 +320,32 @@ async function fetchFromServer(y,m){
   } catch(e){
     setSyncState("error","Gagal terhubung");
     return null;
+  }
+}
+
+// ── Sync data lama ──────────────────────────────────────────
+async function syncDataLama(){
+  const btn = document.getElementById("btnSyncLama");
+  if(!pinAuthed){ requestPin(()=>syncDataLama()); return; }
+  const pin = sessionStorage.getItem("pin");
+  btn.textContent="Menyinkron...";
+  btn.disabled=true;
+  try{
+    const res = await apiFetch({action:"bulkUpdate", pin});
+    if(res.ok){
+      btn.textContent=`✓ Selesai — ${res.updated} entri diperbarui`;
+      btn.classList.add("done");
+      btn.disabled=true;
+      // Refresh cache
+      const fresh = await fetchFromServer(curYear, curMonth);
+      if(fresh){ cache=fresh; renderAll(); }
+    } else {
+      btn.textContent="Gagal: "+res.error;
+      btn.disabled=false;
+    }
+  } catch(e){
+    btn.textContent="Gagal terhubung";
+    btn.disabled=false;
   }
 }
 
