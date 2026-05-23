@@ -102,6 +102,7 @@ body{background:#0a0a0f;color:#e2e0db;font-family:'DM Sans',system-ui,sans-serif
 
 .form-wrap{margin-top:12px;background:#0f0f13;border-radius:10px;padding:14px;border:1px solid #1e1e28;display:none}
 .form-wrap.show{display:block}
+.form-edit-title{font-size:13px;font-weight:700;color:#f0ede8;margin-bottom:12px}
 .form-label{font-size:10px;color:#444;letter-spacing:1px;margin-bottom:6px}
 .kat-grid{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
 .kat-btn{padding:5px 10px;border-radius:14px;border:1.5px solid #222;background:transparent;color:#555;font-size:11px;cursor:pointer;transition:all .12s}
@@ -121,6 +122,8 @@ body{background:#0a0a0f;color:#e2e0db;font-family:'DM Sans',system-ui,sans-serif
 .entry-ket{font-size:10px;color:#555;margin-top:1px}
 .entry-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
 .entry-amt{font-size:13px;font-weight:700}
+.btn-edit{background:none;border:none;color:#555;font-size:14px;cursor:pointer;padding:0;line-height:1;margin-right:2px}
+.btn-edit:hover{color:#f97316}
 .btn-del{background:none;border:none;color:#333;font-size:18px;cursor:pointer;padding:0;line-height:1}
 .day-empty{text-align:center;padding:24px 0;color:#333;font-size:12px;line-height:2}
 
@@ -227,6 +230,7 @@ body{background:#0a0a0f;color:#e2e0db;font-family:'DM Sans',system-ui,sans-serif
     <button class="btn-add" onclick="onTambah()">+ Tambah</button>
   </div>
   <div class="form-wrap" id="formWrap">
+    <div class="form-edit-title" id="formTitle">Tambah Entri</div>
     <div class="form-label">KATEGORI</div>
     <div class="kat-grid" id="katGrid"></div>
     <div class="form-label">KETERANGAN (opsional)</div>
@@ -266,6 +270,7 @@ let curMonth = TODAY.getMonth();
 let selDay   = TODAY.getDate();
 let selKat   = KATEGORI[0].label;
 let selSumber = 'Sendiri';
+let editingId = null;
 let showForm = false;
 let showDetail = false;
 let cache    = []; // in-memory + localStorage backed
@@ -477,6 +482,7 @@ function renderDayPanel(){
     </div>
     <div class="entry-right">
       <span class="entry-amt" style="color:${kat.color}">Rp ${fmt(e.jumlah)}</span>
+      <button class="btn-edit" onclick="onEdit('${e.id}')">✎</button>
       <button class="btn-del" onclick="onHapus('${e.id}')">×</button>
     </div>`;
     wrap.appendChild(el);
@@ -540,19 +546,28 @@ function onTambah(){
   openForm();
 }
 
-function openForm(){
+function openForm(entry=null){
   showForm=true;
+  editingId = entry ? entry.id : null;
   document.getElementById("formWrap").classList.add("show");
-  document.getElementById("inpKet").value="";
-  document.getElementById("inpJumlah").value="";
-  selSumber="Sendiri";
+  document.getElementById("inpKet").value = entry ? (entry.keterangan||"") : "";
+  document.getElementById("inpJumlah").value = entry ? entry.jumlah : "";
+  selKat    = entry ? entry.kategori : KATEGORI[0].label;
+  selSumber = entry ? (entry.sumber||"Sendiri") : "Sendiri";
+  document.getElementById("btnSave").textContent = entry ? "Update" : "Simpan";
+  document.getElementById("formTitle").textContent = entry ? "Edit Entri" : "Tambah Entri";
+  renderKatGrid();
   renderSumberGrid();
   checkSave();
+  setTimeout(()=>document.getElementById("formWrap").scrollIntoView({behavior:"smooth",block:"nearest"}),80);
 }
 
 function closeForm(){
   showForm=false;
+  editingId=null;
   document.getElementById("formWrap").classList.remove("show");
+  document.getElementById("btnSave").textContent="Simpan";
+  document.getElementById("formTitle").textContent="Tambah Entri";
 }
 
 function checkSave(){
@@ -566,7 +581,8 @@ async function saveEntry(){
 
   const pin = sessionStorage.getItem("pin");
   const ket = document.getElementById("inpKet").value.trim();
-  const id  = Date.now().toString();
+  const isEdit = !!editingId;
+  const id  = isEdit ? editingId : Date.now().toString();
   const entry = {
     id, tanggal:`${selDay}/${curMonth+1}/${curYear}`,
     tahun:curYear, bulan:curMonth+1, hari:selDay,
@@ -574,28 +590,31 @@ async function saveEntry(){
     sumber:selSumber
   };
 
-  // 1. Optimistic update — langsung tampil
-  cache.push(entry);
+  // Optimistic update
+  if(isEdit){
+    cache = cache.map(e=>e.id===id ? entry : e);
+  } else {
+    cache.push(entry);
+  }
   writeCache(curYear,curMonth,cache);
   closeForm();
   renderAll();
 
-  // 2. Sync ke server di background
-  setSyncState("syncing","Menyimpan...");
+  // Sync ke server
+  setSyncState("syncing", isEdit ? "Mengupdate..." : "Menyimpan...");
   try{
-    const res = await apiFetch({...entry, action:"add", pin, sumber:selSumber});
+    const action = isEdit ? "update" : "add";
+    const res = await apiFetch({...entry, action, pin});
     if(res.ok){
-      setSyncState("ok","Tersimpan ✓");
-      // refresh supaya ID dari server konsisten
+      setSyncState("ok", isEdit ? "Diperbarui ✓" : "Tersimpan ✓");
       const fresh = await fetchFromServer(curYear,curMonth);
       if(fresh){ cache=fresh; renderAll(); }
     } else {
-      // Rollback kalau unauthorized
-      cache = cache.filter(e=>e.id!==id);
-      writeCache(curYear,curMonth,cache);
-      renderAll();
-      setSyncState("error", res.error==="Unauthorized" ? "PIN salah — data tidak tersimpan" : "Gagal menyimpan");
-      if(res.error==="Unauthorized") pinAuthed=false; sessionStorage.removeItem("pinAuthed");
+      // Rollback
+      const fresh = await fetchFromServer(curYear,curMonth);
+      if(fresh){ cache=fresh; renderAll(); }
+      setSyncState("error", res.error==="Unauthorized" ? "PIN salah" : "Gagal menyimpan");
+      if(res.error==="Unauthorized"){ pinAuthed=false; sessionStorage.removeItem("pinAuthed"); }
     }
   } catch(e){
     setSyncState("error","Gagal terhubung");
@@ -605,6 +624,17 @@ async function saveEntry(){
 function onHapus(id){
   if(!pinAuthed){ requestPin(()=>doDelete(id)); return; }
   doDelete(id);
+}
+
+function onEdit(id){
+  if(!pinAuthed){ requestPin(()=>startEdit(id)); return; }
+  startEdit(id);
+}
+
+function startEdit(id){
+  const entry = cache.find(e=>e.id===id);
+  if(!entry) return;
+  openForm(entry);
 }
 
 async function doDelete(id){
