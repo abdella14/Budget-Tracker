@@ -475,7 +475,7 @@ function renderDayPanel(){
     el.id="entry-"+e.id;
     el.style.borderLeftColor=kat.color;
     const sumber = e.sumber || "Sendiri";
-    const sbadge = sumber==="Titipan" ? "badge-titipan" : sumber==="Budget Khusus" ? "badge-khusus" : "";
+    const sbadge = sumber==="Titipan" ? "badge-titipan" : sumber==="Budget Khusus" ? "badge-khusus" : "badge-sendiri";
     el.innerHTML=`<div style="flex:1;min-width:0">
       <div class="entry-kat">${e.kategori}${sbadge?`<span class="sumber-badge ${sbadge}">${sumber}</span>`:""}</div>
       ${e.keterangan?`<div class="entry-ket">${e.keterangan}</div>`:""}
@@ -604,7 +604,7 @@ async function saveEntry(){
   setSyncState("syncing", isEdit ? "Mengupdate..." : "Menyimpan...");
   try{
     const action = isEdit ? "update" : "add";
-    const res = await apiFetch({...entry, action, pin});
+    const res = await apiFetch({...entry, action, pin, sumber: selSumber});
     if(res.ok){
       setSyncState("ok", isEdit ? "Diperbarui ✓" : "Tersimpan ✓");
       const fresh = await fetchFromServer(curYear,curMonth);
