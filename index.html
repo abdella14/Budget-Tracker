@@ -25,7 +25,7 @@ body{background:#0a0a0f;color:#e2e0db;font-family:'DM Sans',system-ui,sans-serif
   .stats-row{margin:10px 0 0 0}
   .cal-wrap{padding:14px 0 0 0}
   .day-panel{margin:0;border-radius:14px}
-  .btn-sync-lama{display:block;width:calc(100% - 32px);margin:12px 16px 0;padding:11px;border-radius:10px;border:1px dashed #2a2a38;background:transparent;color:#555;font-size:12px;cursor:pointer;text-align:center;transition:all .15s}
+  .btn-sync-lama{display:block;width:calc(100% - 32px);margin:12px 16px 0;padding:9px 12px;border-radius:10px;border:1px dashed #2a2a38;background:#0a0a0f;color:#555;font-size:11px;cursor:pointer;text-align:center;transition:all .15s;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;box-sizing:border-box}
 .btn-sync-lama:hover{border-color:#f97316;color:#f97316}
 .btn-sync-lama.done{border-color:#10b981;color:#10b981;border-style:solid}
 
@@ -71,6 +71,16 @@ body{background:#0a0a0f;color:#e2e0db;font-family:'DM Sans',system-ui,sans-serif
 .cat-name{font-size:12px;color:#bbb}
 .cat-amount{font-size:12px;font-weight:700}
 .cat-bar-wrap{margin-top:10px;padding-top:10px;border-top:1px solid #1e1e28;display:flex;gap:2px;height:6px;border-radius:99px;overflow:hidden}
+.cat-row{cursor:pointer;border-radius:6px;padding:4px 2px;margin-bottom:5px!important;transition:background .12s}
+.cat-row:hover{background:#1e1e28}
+.cat-detail{display:none;margin-bottom:8px;padding:8px 10px;background:#0f0f13;border-radius:8px;border-left:2px solid #333}
+.cat-detail.show{display:block}
+.cat-detail-item{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #1a1a1a}
+.cat-detail-item:last-child{border-bottom:none}
+.cat-detail-date{font-size:10px;color:#555;min-width:60px}
+.cat-detail-ket{font-size:11px;color:#aaa;flex:1;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cat-detail-amt{font-size:11px;font-weight:700;white-space:nowrap}
+.cat-detail-sumber{font-size:9px;padding:1px 5px;border-radius:99px;margin-left:4px}
 .cat-empty{font-size:12px;color:#333}
 
 .stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:10px 16px 0}
@@ -209,7 +219,7 @@ body{background:#0a0a0f;color:#e2e0db;font-family:'DM Sans',system-ui,sans-serif
   <div class="stat-card"><div class="stat-val" id="statTerboros">—</div><div class="stat-lbl">Hari Terboros</div></div>
 </div>
 
-<button class="btn-sync-lama" id="btnSyncLama" onclick="syncDataLama()">⟳ Sinkron data lama → isi kolom Sumber kosong sebagai "Sendiri"</button>
+<button class="btn-sync-lama" id="btnSyncLama" onclick="syncDataLama()">⟳ Sinkron Sumber data lama</button>
 
 <div class="cal-wrap">
   <div class="day-headers">
@@ -466,15 +476,50 @@ function renderCatBreakdown(){
   cache.forEach(e=>{ totals[e.kategori]=(totals[e.kategori]||0)+Number(e.jumlah); });
   const rows = KATEGORI.map(k=>({...k,total:totals[k.label]||0}))
     .filter(k=>k.total>0).sort((a,b)=>b.total-a.total);
-  bd.innerHTML = rows.map(k=>{
-    const pct=Math.round(k.total/total*100);
-    return `<div class="cat-row">
-      <div><span class="cat-dot" style="background:${k.color}"></span><span class="cat-name">${k.label}</span></div>
-      <span class="cat-amount" style="color:${k.color}">Rp ${fmt(k.total)} <span style="color:#444;font-size:10px;font-weight:400">${pct}%</span></span>
-    </div>`;
-  }).join("")+`<div class="cat-bar-wrap">${
+
+  let html = rows.map((k,i)=>{
+    const pct = Math.round(k.total/total*100);
+    // Entries for this category, sorted by date
+    const entries = cache
+      .filter(e=>e.kategori===k.label)
+      .sort((a,b)=>Number(a.hari)-Number(b.hari));
+    const detailItems = entries.map(e=>{
+      const sb = (e.sumber||"Sendiri")==="Titipan"
+        ? `<span class="cat-detail-sumber" style="background:#3b82f622;color:#3b82f6">Titipan</span>`
+        : (e.sumber||"Sendiri")==="Budget Khusus"
+        ? `<span class="cat-detail-sumber" style="background:#8b5cf622;color:#8b5cf6">Khusus</span>`
+        : "";
+      return `<div class="cat-detail-item">
+        <span class="cat-detail-date">${e.hari} Mei</span>
+        <span class="cat-detail-ket">${e.keterangan||"—"}</span>
+        <span class="cat-detail-amt" style="color:${k.color}">Rp ${fmt(e.jumlah)}${sb}</span>
+      </div>`;
+    }).join("");
+
+    return `<div class="cat-row" onclick="toggleCatDetail('catdetail-${i}')">
+      <div><span class="cat-dot" style="background:${k.color}"></span><span class="cat-name">${k.label}</span>
+      <span style="font-size:10px;color:#444;margin-left:4px">(${entries.length}x)</span></div>
+      <span class="cat-amount" style="color:${k.color}">Rp ${fmt(k.total)} <span style="color:#444;font-size:10px;font-weight:400">${pct}%</span> <span style="color:#555;font-size:10px">▾</span></span>
+    </div>
+    <div class="cat-detail" id="catdetail-${i}">${detailItems}</div>`;
+  }).join("");
+
+  html += `<div class="cat-bar-wrap">${
     rows.map(k=>`<div style="width:${Math.round(k.total/total*100)}%;background:${k.color};height:100%"></div>`).join("")
   }</div>`;
+  bd.innerHTML = html;
+}
+
+function toggleCatDetail(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.classList.toggle("show");
+  // flip arrow
+  const row = el.previousElementSibling;
+  if(row){
+    const arrow = row.querySelector("span[style*='color:#555']");
+    if(arrow) arrow.textContent = el.classList.contains("show") ? "▴" : "▾";
+  }
 }
 
 function renderDayPanel(){
