@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Budget Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{background:#0a0a0f;color:#e2e0db;font-family:'DM Sans',system-ui,sans-serif;min-height:100vh}
@@ -166,6 +167,44 @@ body{background:#0a0a0f;color:#e2e0db;font-family:'DM Sans',system-ui,sans-serif
 .badge-titipan{background:#3b82f622;color:#3b82f6}
 .badge-khusus{background:#8b5cf622;color:#8b5cf6}
 
+.btn-pdf{display:flex;align-items:center;gap:6px;background:#16161e;border:1px solid #222;color:#aaa;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;margin-left:auto}
+.btn-pdf:hover{border-color:#f97316;color:#f97316}
+.btn-pdf:disabled{opacity:.5;cursor:not-allowed}
+
+/* PDF hidden content */
+#pdfContent{display:none}
+#pdfContent *{box-sizing:border-box;font-family:'DM Sans',Arial,sans-serif}
+.pdf-page{width:210mm;min-height:297mm;background:#fff;padding:14mm 14mm 10mm;color:#111}
+.pdf-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:14px}
+.pdf-title{font-size:22px;font-weight:800;color:#111;line-height:1.1}
+.pdf-subtitle{font-size:11px;color:#666;margin-top:3px}
+.pdf-generated{font-size:9px;color:#999;text-align:right}
+.pdf-section{margin-bottom:14px}
+.pdf-section-title{font-size:11px;font-weight:700;color:#888;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #eee}
+.pdf-summary-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+.pdf-card{background:#f9f9f9;border-radius:6px;padding:10px 12px;border:1px solid #eee}
+.pdf-card-val{font-size:16px;font-weight:800;color:#111;margin-bottom:2px}
+.pdf-card-val.orange{color:#f97316}
+.pdf-card-val.green{color:#10b981}
+.pdf-card-val.blue{color:#3b82f6}
+.pdf-card-val.purple{color:#8b5cf6}
+.pdf-card-lbl{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.5px}
+.pdf-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.pdf-stat{text-align:center;padding:8px;background:#f9f9f9;border-radius:6px;border:1px solid #eee}
+.pdf-stat-val{font-size:18px;font-weight:800;color:#f97316}
+.pdf-stat-lbl{font-size:8px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.pdf-table{width:100%;border-collapse:collapse;font-size:10px}
+.pdf-table th{background:#f4f4f4;padding:6px 8px;text-align:left;font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #ddd}
+.pdf-table td{padding:5px 8px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.pdf-table tr:last-child td{border-bottom:none}
+.pdf-table tr:hover td{background:#fafafa}
+.pdf-badge{display:inline-block;font-size:8px;padding:1px 5px;border-radius:99px;font-weight:600;margin-left:3px;vertical-align:middle}
+.pdf-badge.titipan{background:#dbeafe;color:#2563eb}
+.pdf-badge.khusus{background:#ede9fe;color:#7c3aed}
+.pdf-badge.sendiri{background:#d1fae5;color:#059669}
+.pdf-cat-bar{display:flex;height:8px;border-radius:99px;overflow:hidden;margin-top:8px;gap:1px}
+.pdf-footer{margin-top:auto;padding-top:10px;border-top:1px solid #eee;font-size:8px;color:#bbb;display:flex;justify-content:space-between}
+
 ::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-thumb{background:#222;border-radius:99px}
 </style>
@@ -199,9 +238,12 @@ body{background:#0a0a0f;color:#e2e0db;font-family:'DM Sans',system-ui,sans-serif
 
 <div class="month-nav">
   <div class="month-label" id="monthLabel"></div>
-  <div class="nav-btns">
-    <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
-    <button class="nav-btn" onclick="changeMonth(1)">›</button>
+  <div style="display:flex;gap:6px;align-items:center">
+    <button class="btn-pdf" id="btnPdf" onclick="exportPDF()" title="Export PDF">📄 PDF</button>
+    <div class="nav-btns">
+      <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
+      <button class="nav-btn" onclick="changeMonth(1)">›</button>
+    </div>
   </div>
 </div>
 
@@ -267,6 +309,9 @@ body{background:#0a0a0f;color:#e2e0db;font-family:'DM Sans',system-ui,sans-serif
 </div><!-- /day-panel -->
 </div><!-- /col-right -->
 </div><!-- /app-wrap -->
+
+<!-- Hidden PDF Content -->
+<div id="pdfContent"></div>
 
 <script>
 const API      = "https://script.google.com/macros/s/AKfycbxBk1FJRRuVesU0KUG2cxiM3M2JJx61y2mu0yiusHubyLL-v2o-okIcOGa08BjhCJQ/exec";
@@ -801,6 +846,139 @@ function cancelPin(){
 
 function clearPinError(){
   document.getElementById("pinError").textContent="";
+}
+
+// ── Export PDF ──────────────────────────────────────────────────
+async function exportPDF(){
+  const btn = document.getElementById("btnPdf");
+  btn.disabled=true;
+  btn.textContent="⏳ Menyiapkan...";
+
+  const total     = sumEntries(cache);
+  const sendiri   = cache.filter(e=>(e.sumber||"Sendiri")==="Sendiri").reduce((s,e)=>s+Number(e.jumlah),0);
+  const titipan   = cache.filter(e=>e.sumber==="Titipan").reduce((s,e)=>s+Number(e.jumlah),0);
+  const khusus    = cache.filter(e=>e.sumber==="Budget Khusus").reduce((s,e)=>s+Number(e.jumlah),0);
+
+  const byDay={};
+  cache.forEach(e=>{const d=Number(e.hari);byDay[d]=(byDay[d]||0)+Number(e.jumlah);});
+  const filled = Object.keys(byDay).length;
+  const rata   = filled ? Math.round(total/filled) : 0;
+  const maxDay = filled ? Object.entries(byDay).reduce((a,b)=>b[1]>a[1]?b:a)[0] : "—";
+
+  // Category totals
+  const catTotals={};
+  cache.forEach(e=>{catTotals[e.kategori]=(catTotals[e.kategori]||0)+Number(e.jumlah);});
+  const catRows = KATEGORI.map(k=>({...k,total:catTotals[k.label]||0}))
+    .filter(k=>k.total>0).sort((a,b)=>b.total-a.total);
+
+  // All entries sorted by date then id
+  const sorted = [...cache].sort((a,b)=>Number(a.hari)-Number(b.hari)||(a.id>b.id?1:-1));
+
+  const now = new Date();
+  const genTime = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours().toString().padStart(2,"0")}:${now.getMinutes().toString().padStart(2,"0")}`;
+
+  // Bar chart for categories
+  const barHtml = catRows.map(k=>`<div style="flex:${Math.round(k.total/total*100)};background:${k.color};height:100%"></div>`).join("");
+
+  // Category table rows
+  const catTableRows = catRows.map(k=>{
+    const pct=Math.round(k.total/total*100);
+    const count=cache.filter(e=>e.kategori===k.label).length;
+    return `<tr>
+      <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${k.color};margin-right:5px;vertical-align:middle"></span>${k.label}</td>
+      <td style="text-align:right;font-weight:700;color:${k.color}">Rp ${fmt(k.total)}</td>
+      <td style="text-align:center;color:#888">${pct}%</td>
+      <td style="text-align:center;color:#888">${count}x</td>
+    </tr>`;
+  }).join("");
+
+  // Transaction table rows
+  const txRows = sorted.map(e=>{
+    const sumb = (e.sumber&&e.sumber.trim())?e.sumber:"Sendiri";
+    const badge = sumb==="Titipan"
+      ? `<span class="pdf-badge titipan">Titipan</span>`
+      : sumb==="Budget Khusus"
+      ? `<span class="pdf-badge khusus">Khusus</span>`
+      : `<span class="pdf-badge sendiri">Sendiri</span>`;
+    const kat  = KATEGORI.find(k=>k.label===e.kategori)||KATEGORI[6];
+    return `<tr>
+      <td style="color:#888">${e.hari} ${MONTHS[curMonth].slice(0,3)}</td>
+      <td><span style="color:${kat.color}">${e.kategori}</span></td>
+      <td>${e.keterangan||"—"}${badge}</td>
+      <td style="text-align:right;font-weight:700;color:#111">Rp ${fmt(e.jumlah)}</td>
+    </tr>`;
+  }).join("");
+
+  const html = `<div class="pdf-page">
+    <div class="pdf-header">
+      <div>
+        <div class="pdf-title">Laporan Keuangan</div>
+        <div class="pdf-subtitle">${MONTHS[curMonth]} ${curYear} &nbsp;·&nbsp; Budget Tracker</div>
+      </div>
+      <div class="pdf-generated">Dibuat: ${genTime}</div>
+    </div>
+
+    <div class="pdf-section">
+      <div class="pdf-section-title">Ringkasan</div>
+      <div class="pdf-summary-grid">
+        <div class="pdf-card">
+          <div class="pdf-card-val orange">Rp ${fmt(total)}</div>
+          <div class="pdf-card-lbl">Total Pengeluaran</div>
+        </div>
+        <div class="pdf-card">
+          <div class="pdf-card-val green">Rp ${fmt(sendiri)}</div>
+          <div class="pdf-card-lbl">Sendiri</div>
+        </div>
+        <div class="pdf-card" style="display:${(titipan||khusus)?'block':'none'}">
+          <div style="margin-bottom:4px"><span style="font-size:13px;font-weight:700;color:#3b82f6">Rp ${fmt(titipan)}</span> <span class="pdf-card-lbl">Titipan</span></div>
+          <div><span style="font-size:13px;font-weight:700;color:#8b5cf6">Rp ${fmt(khusus)}</span> <span class="pdf-card-lbl">Budget Khusus</span></div>
+        </div>
+      </div>
+      <div class="pdf-stats">
+        <div class="pdf-stat"><div class="pdf-stat-val">${filled}</div><div class="pdf-stat-lbl">Hari Tercatat</div></div>
+        <div class="pdf-stat"><div class="pdf-stat-val">Rp ${fmtShort(rata)}</div><div class="pdf-stat-lbl">Rata-rata/Hari</div></div>
+        <div class="pdf-stat"><div class="pdf-stat-val">${maxDay}</div><div class="pdf-stat-lbl">Hari Terboros</div></div>
+      </div>
+    </div>
+
+    <div class="pdf-section">
+      <div class="pdf-section-title">Pengeluaran per Kategori</div>
+      <table class="pdf-table">
+        <thead><tr><th>Kategori</th><th style="text-align:right">Total</th><th style="text-align:center">%</th><th style="text-align:center">Frekuensi</th></tr></thead>
+        <tbody>${catTableRows}</tbody>
+      </table>
+      <div class="pdf-cat-bar">${barHtml}</div>
+    </div>
+
+    <div class="pdf-section">
+      <div class="pdf-section-title">Rincian Transaksi (${sorted.length} entri)</div>
+      <table class="pdf-table">
+        <thead><tr><th>Tanggal</th><th>Kategori</th><th>Keterangan</th><th style="text-align:right">Jumlah</th></tr></thead>
+        <tbody>${txRows}</tbody>
+      </table>
+    </div>
+
+    <div class="pdf-footer">
+      <span>Budget Tracker · ${MONTHS[curMonth]} ${curYear}</span>
+      <span>budget-tracker-three-lac.vercel.app</span>
+    </div>
+  </div>`;
+
+  const container = document.getElementById("pdfContent");
+  container.innerHTML = html;
+  container.style.display = "block";
+
+  await html2pdf().set({
+    margin:      0,
+    filename:    `laporan-${MONTHS[curMonth].toLowerCase()}-${curYear}.pdf`,
+    image:       {type:"jpeg", quality:0.98},
+    html2canvas: {scale:2, useCORS:true, letterRendering:true},
+    jsPDF:       {unit:"mm", format:"a4", orientation:"portrait"}
+  }).from(container.querySelector(".pdf-page")).save();
+
+  container.style.display = "none";
+  btn.disabled=false;
+  btn.textContent="📄 PDF";
 }
 
 // ── Init ──────────────────────────────────────────────────────
