@@ -174,7 +174,7 @@ body{background:#0a0a0f;color:#e2e0db;font-family:'DM Sans',system-ui,sans-serif
 /* PDF hidden content */
 #pdfContent{display:none}
 #pdfContent *{box-sizing:border-box;font-family:'DM Sans',Arial,sans-serif}
-.pdf-page{width:210mm;min-height:297mm;background:#fff;padding:14mm 14mm 10mm;color:#111}
+.pdf-page{width:210mm;background:#fff;padding:14mm 14mm 10mm;color:#111}
 .pdf-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:14px}
 .pdf-title{font-size:22px;font-weight:800;color:#111;line-height:1.1}
 .pdf-subtitle{font-size:11px;color:#666;margin-top:3px}
@@ -203,7 +203,7 @@ body{background:#0a0a0f;color:#e2e0db;font-family:'DM Sans',system-ui,sans-serif
 .pdf-badge.khusus{background:#ede9fe;color:#7c3aed}
 .pdf-badge.sendiri{background:#d1fae5;color:#059669}
 .pdf-cat-bar{display:flex;height:8px;border-radius:99px;overflow:hidden;margin-top:8px;gap:1px}
-.pdf-footer{margin-top:auto;padding-top:10px;border-top:1px solid #eee;font-size:8px;color:#bbb;display:flex;justify-content:space-between}
+.pdf-footer{margin-top:16px;padding-top:8px;border-top:1px solid #eee;font-size:8px;color:#bbb;display:flex;justify-content:space-between}
 
 ::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-thumb{background:#222;border-radius:99px}
@@ -958,7 +958,7 @@ async function exportPDF(){
       </table>
     </div>
 
-    <div class="pdf-footer">
+    <div class="pdf-footer" style="page-break-inside:avoid;break-inside:avoid">
       <span>Budget Tracker · ${MONTHS[curMonth]} ${curYear}</span>
       <span>budget-tracker-three-lac.vercel.app</span>
     </div>
